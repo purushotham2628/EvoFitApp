@@ -10,6 +10,8 @@ import { Goal } from "./models/Goal";
 import { authenticateToken, generateToken, type AuthRequest } from "./middleware/auth";
 import { connectDatabase } from "./db";
 import { startOfDay, endOfDay } from "date-fns";
+import 'dotenv/config'
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
@@ -84,22 +86,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/nutrition/search", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { query } = req.body;
-      
+      if (!query) {
+        return res.status(400).json({ message: "Query is required" });
+      }
+
+      // Log query for debugging
+      console.log("Nutritionix search query:", query);
+
       const response = await axios.post(
         "https://trackapi.nutritionix.com/v2/natural/nutrients",
         { query },
         {
           headers: {
-            "x-app-id": process.env.NUTRITIONIX_APP_ID,
-            "x-app-key": process.env.NUTRITIONIX_APP_KEY,
+            "x-app-id": process.env.NUTRITIONIX_APP_ID || "",
+            "x-app-key": process.env.NUTRITIONIX_APP_KEY || "",
             "Content-Type": "application/json",
           },
         }
       );
+      
+
 
       res.json({ foods: response.data.foods });
     } catch (error: any) {
-      res.status(500).json({ message: "Nutritionix search failed", error: error.message });
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Nutritionix API error:", error.response.data);
+        res.status(error.response.status).json({
+          message: error.response.data.message || "Nutritionix search failed",
+          details: error.response.data,
+        });
+      } else {
+        res.status(500).json({ message: "Nutritionix search failed", error: error.message });
+      }
     }
   });
 
