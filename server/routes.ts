@@ -106,8 +106,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Meal Routes
   app.get("/api/meals", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      const meals = await Meal.find({ userId: req.userId }).sort({ createdAt: -1 });
-      res.json(meals);
+      const meals = await Meal.find({ userId: req.userId }).sort({ createdAt: -1 }).lean();
+      const mealsWithId = meals.map(meal => ({ ...meal, id: meal._id.toString(), _id: undefined }));
+      res.json(mealsWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -122,8 +123,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           $gte: startOfDay(today),
           $lte: endOfDay(today),
         },
-      }).sort({ createdAt: -1 });
-      res.json(meals);
+      }).sort({ createdAt: -1 }).lean();
+      const mealsWithId = meals.map(meal => ({ ...meal, id: meal._id.toString(), _id: undefined }));
+      res.json(mealsWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -135,7 +137,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId: req.userId,
       });
-      res.json(meal);
+      const mealWithId = { ...meal.toObject(), id: meal._id.toString(), _id: undefined };
+      res.json(mealWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -153,8 +156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Workout Routes
   app.get("/api/workouts", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      const workouts = await Workout.find({ userId: req.userId }).sort({ createdAt: -1 });
-      res.json(workouts);
+      const workouts = await Workout.find({ userId: req.userId }).sort({ createdAt: -1 }).lean();
+      const workoutsWithId = workouts.map(workout => ({ ...workout, id: workout._id.toString(), _id: undefined }));
+      res.json(workoutsWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -169,8 +173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           $gte: startOfDay(today),
           $lte: endOfDay(today),
         },
-      }).sort({ createdAt: -1 });
-      res.json(workouts);
+      }).sort({ createdAt: -1 }).lean();
+      const workoutsWithId = workouts.map(workout => ({ ...workout, id: workout._id.toString(), _id: undefined }));
+      res.json(workoutsWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -182,7 +187,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId: req.userId,
       });
-      res.json(workout);
+      const workoutWithId = { ...workout.toObject(), id: workout._id.toString(), _id: undefined };
+      res.json(workoutWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -200,11 +206,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Goal Routes
   app.get("/api/goals", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      let goal = await Goal.findOne({ userId: req.userId });
+      let goal = await Goal.findOne({ userId: req.userId }).lean();
       if (!goal) {
-        goal = await Goal.create({ userId: req.userId });
+        const newGoal = await Goal.create({ userId: req.userId });
+        goal = newGoal.toObject();
       }
-      res.json(goal);
+      const goalWithId = { ...goal, id: goal._id.toString(), _id: undefined };
+      res.json(goalWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -216,8 +224,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { userId: req.userId },
         { ...req.body, updatedAt: new Date() },
         { new: true, upsert: true }
-      );
-      res.json(goal);
+      ).lean();
+      const goalWithId = { ...goal, id: goal._id.toString(), _id: undefined };
+      res.json(goalWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -236,6 +245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const user = await User.findById(post.userId).select("fullName username");
           return {
             ...post,
+            id: post._id.toString(),
+            _id: undefined,
             user: user ? { fullName: user.fullName, username: user.username } : null,
           };
         })
@@ -253,7 +264,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId: req.userId,
       });
-      res.json(post);
+      const postWithId = { ...post.toObject(), id: post._id.toString(), _id: undefined };
+      res.json(postWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -265,8 +277,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.params.id,
         { $inc: { likes: 1 } },
         { new: true }
-      );
-      res.json(post);
+      ).lean();
+      const postWithId = { ...post, id: post._id.toString(), _id: undefined };
+      res.json(postWithId);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
