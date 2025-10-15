@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -8,7 +9,7 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
+  const pathReq = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -19,8 +20,8 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+    if (pathReq.startsWith("/api")) {
+      let logLine = `${req.method} ${pathReq} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -44,18 +45,25 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Only setup vite in development, after all routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
+    // Serve frontend static files from client build directory
+    const frontendDistPath = path.join(__dirname, "../client/dist");
+    app.use(express.static(frontendDistPath));
+
+    // SPA fallback route to serve frontend index.html
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(frontendDistPath, "index.html"));
+    });
+
+    // Existing static serving (optional depending on your vite setup)
     serveStatic(app);
   }
 
-  // Always use the port from environment or default to 5000
-  const port = parseInt(process.env.PORT || '5000', 10);
-
-  // Windows-compatible host, no reusePort
-  server.listen(port, "127.0.0.1", () => {
+  // Listen on environment port on all network interfaces
+  const port = parseInt(process.env.PORT || "5000", 10);
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
 })();
